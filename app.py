@@ -6,7 +6,7 @@ import streamlit.components.v1 as components
 from telethon import TelegramClient
 from telethon.tl.functions.channels import EditBannedRequest
 from telethon.tl.functions.messages import ExportChatInviteRequest
-from telethon.tl.types import ChatBannedRights, ChannelParticipantsAdmins
+from telethon.tl.types import ChatBannedRights
 
 # ================= إعدادات الأمان والمفاتيح =================
 try:
@@ -69,7 +69,7 @@ setInterval(draw, 35);
 """
 components.html(matrix_canvas, height=0)
 
-# ================= 1. قفل النظام بباسورد =================
+# ================= 1. شاشة قفل النظام بباسورد =================
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
@@ -116,25 +116,18 @@ async def scan_groups(groups, allowed_users, allowed_phones):
     matched_users = set()
 
     for link in groups:
-        link = link.strip()
-        if not link:
+        clean_link = link.strip()
+        if not clean_link:
             continue
         try:
-            entity = await client.get_entity(link)
-            group_title = getattr(entity, 'title', link)
-            
-            # حماية المشرفين والأدمنز تلقائياً
-            admins = await client.get_participants(entity, filter=ChannelParticipantsAdmins)
-            admin_ids = {adm.id for adm in admins}
+            entity = await client.get_entity(clean_link)
+            group_title = getattr(entity, 'title', clean_link)
 
             participants = await client.get_participants(entity)
             for user in participants:
                 if user.bot or user.deleted or user.is_self:
                     continue
                 total_members += 1
-                
-                if user.id in admin_ids:
-                    continue
 
                 username = user.username.lower() if user.username else None
                 user_phone = user.phone[-10:] if (user.phone and len(user.phone) >= 10) else None
@@ -149,7 +142,7 @@ async def scan_groups(groups, allowed_users, allowed_phones):
                     results.append({
                         "تحديد": True,
                         "الجروب": group_title,
-                        "group_link": link,
+                        "group_link": clean_link,
                         "user_id": user.id,
                         "الاسم على تليجرام": user.first_name or "بدون اسم",
                         "اليوزر": f"@{username}" if username else "لا يوجد",
@@ -157,7 +150,7 @@ async def scan_groups(groups, allowed_users, allowed_phones):
                         "حساب وهمي": (username is None and user_phone is None)
                     })
         except Exception as e:
-            st.error(f"❌ خطأ في الجروب ({link}): {e}")
+            st.error(f"❌ خطأ في الجروب ({clean_link}): {e}")
 
     await client.disconnect()
     not_joined_count = max(0, len(allowed_users) - len(matched_users))
@@ -189,7 +182,7 @@ async def execute_action(selected_rows, is_permanent_ban):
             await client(EditBannedRequest(row["group_link"], int(row["user_id"]), ban_rights))
             if not is_permanent_ban:
                 await client(EditBannedRequest(row["group_link"], int(row["user_id"]), unban_rights))
-            
+
             action_type = "حظر نهائي" if is_permanent_ban else "طرد عادي"
             status_box.success(f"⚡ {action_type}: {row['الاسم على تليجرام']} ({idx+1}/{total_targets})")
             report.append({
@@ -213,11 +206,12 @@ async def send_warning_msg(groups, msg_text):
     client = TelegramClient('my_session', API_ID, API_HASH)
     await client.connect()
     for link in groups:
-        if link.strip():
+        clean_link = link.strip()
+        if clean_link:
             try:
-                await client.send_message(link.strip(), msg_text)
+                await client.send_message(clean_link, msg_text)
             except Exception as e:
-                st.error(f"فشل إرسال الرسالة لـ {link}: {e}")
+                st.error(f"فشل إرسال الرسالة لـ {clean_link}: {e}")
     await client.disconnect()
 
 async def revoke_invite_links(groups):
@@ -225,12 +219,13 @@ async def revoke_invite_links(groups):
     await client.connect()
     new_links = {}
     for link in groups:
-        if link.strip():
+        clean_link = link.strip()
+        if clean_link:
             try:
-                res = await client(ExportChatInviteRequest(link.strip()))
-                new_links[link.strip()] = res.link
+                res = await client(ExportChatInviteRequest(clean_link))
+                new_links[clean_link] = res.link
             except Exception as e:
-                st.error(f"فشل تجديد رابط {link}: {e}")
+                st.error(f"فشل تجديد رابط {clean_link}: {e}")
     await client.disconnect()
     return new_links
 
@@ -238,8 +233,8 @@ async def revoke_invite_links(groups):
 if st.session_state.page == "home":
     col1, col2 = st.columns(2)
     with col1:
-        groups_input = st.text_area("🔗 أدخل رابط الجروب (أو عدة روابط، كل رابط في سطر):", height=130, placeholder="https://t.me")
-        whitelist_input = st.text_input("🛡️ استثناء يدوي سريع (اكتب أي يوزر مش عايز تمسحه، افصل بينهم بفاصلة):", placeholder="@dr_ahmed, @ta_sara")
+        groups_input = st.text_area("🔗 أدخل رابط الجروب (أو عدة روابط، كل رابط في سطر):", height=120, placeholder="https://t.me")
+        whitelist_users = st.text_input("🛡️ استثناء يوزرات يدوي (افصل بينهم بفاصلة):", placeholder="@Mohammed_Tharwet, @ahmed_ali")
+        whitelist_phones = st.text_area("📱 استثناء أرقام هواتف يدوي (كل رقم في سطر):", height=100, placeholder="01004960925\n01204643545")
     with col2:
-        phones_input = st.text_area("📱 استثناء أرقام الهاتف (أو عدة أرقام، كل رقم في سطر):", height=130, placeholder="0123456789")
-        st.markdown("💡 **ملاحظة:** الأرقام يجب أن تكون بدون + أو 00، فقط آخر 10 أرقام.")
+        uploaded_file = st.file_uploader("📂 ارفع ملف الفورم (CSV أو XLSX - اختياري لو دخلت بيانات يدوي):", type=['csv', 'xlsx'])
