@@ -23,18 +23,15 @@ st.set_page_config(page_title="تصفية الجروب | Smart Manager", page_ic
 modern_glass_css = """
 <style>
     @import url('https://googleapis.com');
-
     .stApp {
         background: radial-gradient(circle at 15% 15%, #162238 0%, #090d16 55%, #05070c 100%);
         color: #f1f5f9;
         font-family: 'Tajawal', sans-serif;
     }
-
     h1, h2, h3, label, .stMarkdown p {
         font-family: 'Tajawal', sans-serif !important;
         color: #f8fafc !important;
     }
-
     .hero-banner {
         background: linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(129, 140, 248, 0.15) 100%);
         border: 1px solid rgba(56, 189, 248, 0.3);
@@ -58,7 +55,6 @@ modern_glass_css = """
         margin-top: 6px;
         font-size: 1rem;
     }
-
     [data-testid="stMetric"] {
         background: rgba(30, 41, 59, 0.55);
         border: 1px solid rgba(148, 163, 184, 0.15);
@@ -66,32 +62,17 @@ modern_glass_css = """
         border-radius: 14px;
         padding: 16px 20px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-        transition: transform 0.2s ease;
-    }
-    [data-testid="stMetric"]:hover {
-        transform: translateY(-3px);
-        border-color: rgba(56, 189, 248, 0.5);
     }
     [data-testid="stMetricValue"] {
         color: #38bdf8 !important;
         font-weight: 800 !important;
     }
-    [data-testid="stMetricLabel"] {
-        color: #cbd5e1 !important;
-    }
-
     .stTextArea textarea, .stTextInput input, [data-testid="stFileUploader"] {
         background-color: rgba(15, 23, 42, 0.75) !important;
         color: #f8fafc !important;
         border: 1px solid rgba(56, 189, 248, 0.3) !important;
         border-radius: 12px !important;
-        padding: 10px !important;
     }
-    .stTextArea textarea:focus, .stTextInput input:focus {
-        border-color: #38bdf8 !important;
-        box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25) !important;
-    }
-
     .stButton > button {
         background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%) !important;
         color: #ffffff !important;
@@ -101,16 +82,8 @@ modern_glass_css = """
         font-family: 'Tajawal', sans-serif !important;
         font-weight: 700 !important;
         font-size: 16px !important;
-        box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
-        transition: all 0.25s ease !important;
         width: 100%;
     }
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(79, 70, 229, 0.6);
-        filter: brightness(1.1);
-    }
-
     header, #MainMenu, footer {visibility: hidden;}
 </style>
 """
@@ -121,13 +94,7 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
-    st.markdown("""
-        <div class="hero-banner">
-            <h1>💠 نظام تصفية الجروب الذكي</h1>
-            <p>بوابة الإدارة المحمية — يرجى إدخال رمز المرور للمتابعة</p>
-        </div>
-    """, unsafe_allow_html=True)
-
+    st.markdown('<div class="hero-banner"><h1>💠 نظام تصفية الجروب الذكي</h1><p>يرجى إدخال رمز المرور للمتابعة</p></div>', unsafe_allow_html=True)
     col_l, col_m, col_r = st.columns([1, 1.2, 1])
     with col_m:
         pwd = st.text_input("كلمة المرور", type="password", placeholder="••••••••")
@@ -136,7 +103,7 @@ if not st.session_state.authenticated:
                 st.session_state.authenticated = True
                 st.rerun()
             else:
-                st.error("كلمة المرور غير صحيحة، حاول مرة أخرى.")
+                st.error("كلمة المرور غير صحيحة!")
     st.stop()
 
 # ================= إدارة الحالة =================
@@ -152,19 +119,14 @@ for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-st.markdown("""
-    <div class="hero-banner">
-        <h1>💠 نظام تصفية وإدارة جروبات تليجرام</h1>
-        <p>لوحة تحكم ذكية لمطابقة البيانات، حماية المشرفين، وتصفية الأعضاء بضغطة زر</p>
-    </div>
-""", unsafe_allow_html=True)
+st.markdown('<div class="hero-banner"><h1>💠 نظام تصفية وإدارة جروبات تليجرام</h1><p>لوحة تحكم ذكية لمطابقة البيانات وحماية المشرفين</p></div>', unsafe_allow_html=True)
 
-# ================= دوال الاتصال بتليجرام =================
+# ================= دوال تليجرام =================
 async def scan_groups(groups, allowed_users, allowed_phones):
     client = TelegramClient('my_session', API_ID, API_HASH)
     await client.connect()
     if not await client.is_user_authorized():
-        st.error("ملف الجلسة (my_session.session) غير صالح أو منتهي!")
+        st.error("ملف الجلسة (my_session.session) غير صالح!")
         await client.disconnect()
         return [], {}
 
@@ -173,28 +135,25 @@ async def scan_groups(groups, allowed_users, allowed_phones):
     matched_users = set()
 
     for link in groups:
-        link = link.strip()
-        if not link:
+        clean_link = link.strip()
+        if not clean_link:
             continue
         try:
-            entity = await client.get_entity(link)
-            group_title = getattr(entity, 'title', link)
-
+            entity = await client.get_entity(clean_link)
+            group_title = getattr(entity, 'title', clean_link)
             admins = await client.get_participants(entity, filter=ChannelParticipantsAdmins)
             admin_ids = {adm.id for adm in admins}
-
             participants = await client.get_participants(entity)
+
             for user in participants:
                 if user.bot or user.deleted or user.is_self:
                     continue
                 total_members += 1
-
                 if user.id in admin_ids:
                     continue
 
                 username = user.username.lower() if user.username else None
                 user_phone = user.phone[-10:] if (user.phone and len(user.phone) >= 10) else None
-
                 in_users = username in allowed_users
                 in_phones = user_phone in allowed_phones
 
@@ -205,7 +164,7 @@ async def scan_groups(groups, allowed_users, allowed_phones):
                     results.append({
                         "تحديد": True,
                         "الجروب": group_title,
-                        "group_link": link,
+                        "group_link": clean_link,
                         "user_id": user.id,
                         "الاسم على تليجرام": user.first_name or "بدون اسم",
                         "اليوزر": f"@{username}" if username else "لا يوجد",
@@ -213,7 +172,7 @@ async def scan_groups(groups, allowed_users, allowed_phones):
                         "حساب وهمي": (username is None and user_phone is None)
                     })
         except Exception as e:
-            st.error(f"تعذر فحص الجروب ({link}): {e}")
+            st.error(f"تعذر فحص الجروب ({clean_link}): {e}")
 
     await client.disconnect()
     not_joined_count = max(0, len(allowed_users) - len(matched_users))
@@ -278,3 +237,23 @@ async def send_warning_msg(groups, msg_text):
     await client.disconnect()
 
 async def revoke_invite_links(groups):
+    client = TelegramClient('my_session', API_ID, API_HASH)
+    await client.connect()
+    new_links = {}
+    for link in groups:
+        clean_link = link.strip()
+        if clean_link:
+            try:
+                res = await client(ExportChatInviteRequest(clean_link))
+                new_links[clean_link] = res.link
+            except Exception as e:
+                st.error(f"فشل تجديد رابط {clean_link}: {e}")
+    await client.disconnect()
+    return new_links
+
+# ================= الصفحة 1: الصفحة الرئيسية =================
+if st.session_state.page == "home":
+    col1, col2 = st.columns(2, gap="large")
+    with col1:
+        st.markdown("### 1️⃣ إعدادات الجروب والاستثناءات")
+        groups_input = st.text_area("روابط الجروبات (كل رابط في سطر مستقل):", height=130, placeholder="https://t.me")
