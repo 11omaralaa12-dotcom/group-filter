@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 from telethon import TelegramClient
 from telethon.tl.functions.channels import EditBannedRequest
 from telethon.tl.functions.messages import ExportChatInviteRequest
@@ -17,133 +18,72 @@ except Exception:
     API_HASH = ""
     APP_PASSWORD = "12345"
 
-st.set_page_config(page_title="تصفية الجروب | Smart Manager", page_icon="💠", layout="wide")
+st.set_page_config(page_title="تصفية الجروب | Ultimate Control Panel", page_icon="👨‍💻", layout="wide")
 
-# ================= التصميم الجذري الجديد (Modern Dark Glassmorphism) =================
-modern_glass_css = """
+# ================= تصميم الهاكر + Matrix Rain =================
+hacker_style = """
 <style>
     @import url('https://googleapis.com');
-
-    /* خلفية متدرجة فخمة مريحة للعين */
-    .stApp {
-        background: radial-gradient(circle at 15% 15%, #162238 0%, #090d16 55%, #05070c 100%);
-        color: #f1f5f9;
-        font-family: 'Tajawal', sans-serif;
+    .stApp { background-color: #020502; color: #00FF41; font-family: 'Cairo', 'Fira Code', monospace; }
+    h1, h2, h3, label, .stMarkdown p, [data-testid="stMetricValue"], [data-testid="stMetricLabel"] {
+        color: #00FF41 !important; text-shadow: 0 0 8px rgba(0, 255, 65, 0.5); font-family: 'Cairo', monospace !important;
     }
-
-    /* العناوين والنصوص */
-    h1, h2, h3, label, .stMarkdown p {
-        font-family: 'Tajawal', sans-serif !important;
-        color: #f8fafc !important;
+    .stTextArea textarea, .stTextInput input, [data-testid="stFileUploader"], .stSelectbox div[data-baseweb="select"] {
+        background-color: #071207 !important; color: #00FF41 !important; border: 1px solid #00FF41 !important;
     }
-
-    /* هيدر زجاجي رئيسي */
-    .hero-banner {
-        background: linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(129, 140, 248, 0.15) 100%);
-        border: 1px solid rgba(56, 189, 248, 0.3);
-        backdrop-filter: blur(12px);
-        border-radius: 16px;
-        padding: 24px;
-        text-align: center;
-        margin-bottom: 24px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
-    }
-    .hero-banner h1 {
-        background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-weight: 800;
-        font-size: 2.3rem;
-        margin: 0;
-    }
-    .hero-banner p {
-        color: #94a3b8 !important;
-        margin-top: 6px;
-        font-size: 1rem;
-    }
-
-    /* كروت الإحصائيات (Metrics) */
-    [data-testid="stMetric"] {
-        background: rgba(30, 41, 59, 0.55);
-        border: 1px solid rgba(148, 163, 184, 0.15);
-        backdrop-filter: blur(10px);
-        border-radius: 14px;
-        padding: 16px 20px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-        transition: transform 0.2s ease;
-    }
-    [data-testid="stMetric"]:hover {
-        transform: translateY(-3px);
-        border-color: rgba(56, 189, 248, 0.5);
-    }
-    [data-testid="stMetricValue"] {
-        color: #38bdf8 !important;
-        font-weight: 800 !important;
-    }
-    [data-testid="stMetricLabel"] {
-        color: #cbd5e1 !important;
-    }
-
-    /* خانات الإدخال ورفع الملفات */
-    .stTextArea textarea, .stTextInput input, [data-testid="stFileUploader"] {
-        background-color: rgba(15, 23, 42, 0.75) !important;
-        color: #f8fafc !important;
-        border: 1px solid rgba(56, 189, 248, 0.3) !important;
-        border-radius: 12px !important;
-        padding: 10px !important;
-    }
-    .stTextArea textarea:focus, .stTextInput input:focus {
-        border-color: #38bdf8 !important;
-        box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25) !important;
-    }
-
-    /* الأزرار العصرية المتدرجة */
     .stButton > button {
-        background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%) !important;
-        color: #ffffff !important;
-        border: none !important;
-        border-radius: 12px !important;
-        padding: 12px 20px !important;
-        font-family: 'Tajawal', sans-serif !important;
-        font-weight: 700 !important;
-        font-size: 16px !important;
-        box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
-        transition: all 0.25s ease !important;
-        width: 100%;
+        background-color: #001a05 !important; color: #00FF41 !important; border: 2px solid #00FF41 !important;
+        font-weight: bold !important; box-shadow: 0 0 10px rgba(0, 255, 65, 0.3); width: 100%; transition: 0.3s;
     }
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(79, 70, 229, 0.6);
-        filter: brightness(1.1);
+    .stButton > button:hover { background-color: #00FF41 !important; color: #000 !important; box-shadow: 0 0 20px #00FF41; }
+    header {visibility: hidden;}
+    iframe[title="streamlit_components_v1.html_v1"] {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; opacity: 0.18; pointer-events: none;
     }
-
-    /* إخفاء عناصر ستريمليت الافتراضية */
-    header, #MainMenu, footer {visibility: hidden;}
+    .block-container { position: relative; z-index: 1; }
 </style>
 """
-st.markdown(modern_glass_css, unsafe_allow_html=True)
+st.markdown(hacker_style, unsafe_allow_html=True)
 
-# ================= 1. شاشة تسجيل الدخول الأنيقة =================
+matrix_canvas = """
+<canvas id="matrix"></canvas>
+<script>
+const canvas = document.getElementById('matrix');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const fontSize = 14; const columns = canvas.width / fontSize;
+const drops = Array(Math.floor(columns)).fill(1);
+function draw() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.06)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#00FF41'; ctx.font = fontSize + 'px monospace';
+    for (let i = 0; i < drops.length; i++) {
+        const text = chars.charAt(Math.floor(Math.random() * chars.length));
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
+    }
+}
+setInterval(draw, 35);
+</script>
+"""
+components.html(matrix_canvas, height=0)
+
+# ================= 1. قفل النظام بباسورد =================
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
-    st.markdown("""
-        <div class="hero-banner">
-            <h1>💠 نظام تصفية الجروب الذكي</h1>
-            <p>بوابة الإدارة المحمية — يرجى إدخال رمز المرور للمتابعة</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    col_l, col_m, col_r = st.columns([1, 1.2, 1])
+    st.markdown("<h1 style='text-align: center;'>🔒 نظام تصفية الجروب // ACCESS LOCKED</h1>", unsafe_allow_html=True)
+    col_l, col_m, col_r = st.columns([1, 2, 1])
     with col_m:
-        pwd = st.text_input("كلمة المرور", type="password", placeholder="••••••••")
-        if st.button("تسجيل الدخول ➔"):
+        pwd = st.text_input("🔑 أدخل كلمة المرور للدخول للنظام:", type="password")
+        if st.button("🔓 فتح النظام"):
             if pwd == APP_PASSWORD:
                 st.session_state.authenticated = True
                 st.rerun()
             else:
-                st.error("كلمة المرور غير صحيحة، حاول مرة أخرى.")
+                st.error("❌ كلمة المرور غير صحيحة!")
     st.stop()
 
 # ================= إدارة الحالة =================
@@ -159,20 +99,15 @@ for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-# الهيدر الرئيسي للتطبيق
-st.markdown("""
-    <div class="hero-banner">
-        <h1>💠 نظام تصفية وإدارة جروبات تليجرام</h1>
-        <p>لوحة تحكم ذكية لمطابقة البيانات، حماية المشرفين، وتصفية الأعضاء بضغطة زر</p>
-    </div>
-""", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>[ 👨‍💻 نظام تصفية الجروب // ULTIMATE CONTROL PANEL ]</h1>", unsafe_allow_html=True)
+st.divider()
 
 # ================= دوال الاتصال بتليجرام =================
 async def scan_groups(groups, allowed_users, allowed_phones):
     client = TelegramClient('my_session', API_ID, API_HASH)
     await client.connect()
     if not await client.is_user_authorized():
-        st.error("ملف الجلسة (my_session.session) غير صالح أو منتهي!")
+        st.error("⚠️ ملف الجلسة (my_session.session) غير صالح!")
         await client.disconnect()
         return [], {}
 
@@ -188,6 +123,7 @@ async def scan_groups(groups, allowed_users, allowed_phones):
             entity = await client.get_entity(link)
             group_title = getattr(entity, 'title', link)
             
+            # حماية المشرفين والأدمنز تلقائياً
             admins = await client.get_participants(entity, filter=ChannelParticipantsAdmins)
             admin_ids = {adm.id for adm in admins}
 
@@ -221,7 +157,7 @@ async def scan_groups(groups, allowed_users, allowed_phones):
                         "حساب وهمي": (username is None and user_phone is None)
                     })
         except Exception as e:
-            st.error(f"تعذر فحص الجروب ({link}): {e}")
+            st.error(f"❌ خطأ في الجروب ({link}): {e}")
 
     await client.disconnect()
     not_joined_count = max(0, len(allowed_users) - len(matched_users))
@@ -255,7 +191,7 @@ async def execute_action(selected_rows, is_permanent_ban):
                 await client(EditBannedRequest(row["group_link"], int(row["user_id"]), unban_rights))
             
             action_type = "حظر نهائي" if is_permanent_ban else "طرد عادي"
-            status_box.success(f"تم تنفيذ ({action_type}) على: {row['الاسم على تليجرام']} ({idx+1}/{total_targets})")
+            status_box.success(f"⚡ {action_type}: {row['الاسم على تليجرام']} ({idx+1}/{total_targets})")
             report.append({
                 "الاسم": row["الاسم على تليجرام"],
                 "اليوزر": row["اليوزر"],
@@ -266,7 +202,7 @@ async def execute_action(selected_rows, is_permanent_ban):
             })
             await asyncio.sleep(3)
         except Exception as e:
-            st.warning(f"تعذر تنفيذ الإجراء مع {row['الاسم على تليجرام']}: {e}")
+            st.warning(f"⚠️ فشل مع {row['الاسم على تليجرام']}: {e}")
         progress.progress((idx + 1) / total_targets)
 
     timer_box.empty()
@@ -279,3 +215,29 @@ async def send_warning_msg(groups, msg_text):
     for link in groups:
         if link.strip():
             try:
+                await client.send_message(link.strip(), msg_text)
+            except Exception as e:
+                st.error(f"فشل إرسال الرسالة لـ {link}: {e}")
+    await client.disconnect()
+
+async def revoke_invite_links(groups):
+    client = TelegramClient('my_session', API_ID, API_HASH)
+    await client.connect()
+    new_links = {}
+    for link in groups:
+        if link.strip():
+            try:
+                res = await client(ExportChatInviteRequest(link.strip()))
+                new_links[link.strip()] = res.link
+            except Exception as e:
+                st.error(f"فشل تجديد رابط {link}: {e}")
+    await client.disconnect()
+    return new_links
+
+# ================= الصفحة 1: الصفحة الرئيسية =================
+if st.session_state.page == "home":
+    col1, col2 = st.columns(2)
+    with col1:
+        groups_input = st.text_area("🔗 أدخل رابط الجروب (أو عدة روابط، كل رابط في سطر):", height=130, placeholder="https://t.me")
+        whitelist_input = st.text_input("🛡️ استثناء يدوي سريع (اكتب أي يوزر مش عايز تمسحه، افصل بينهم بفاصلة):", placeholder="@dr_ahmed, @ta_sara")
+    with col2:
