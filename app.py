@@ -1,126 +1,326 @@
 import asyncio
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 from telethon import TelegramClient
 from telethon.tl.functions.channels import EditBannedRequest
 from telethon.tl.types import ChatBannedRights
 
-# قراءة المفاتيح من إعدادات السيرفر
-API_ID = int(st.secrets["API_ID"])
-API_HASH = str(st.secrets["API_HASH"])
+# قراءة المفاتيح من إعدادات السيرفر (أو حط أرقامك هنا لو هتجربه على جهازك الأول)
+API_ID = int(st.secrets.get("API_ID", 1234567))
+API_HASH = st.secrets.get("API_HASH", "your_api_hash")
 
-st.set_page_config(page_title="منظف جروبات تليجرام", page_icon="🧹", layout="wide")
-st.title("🧹 أداة تنظيف جروبات تليجرام الذكية")
-st.markdown("ارفع ملف ردود الفورم، وحط روابط الجروبات، واختار بين **المعاينة** أو **الطرد الفعلي**.")
+# 1. إعدادات الصفحة واسم البرنامج
+st.set_page_config(page_title="تصفية الجروب", page_icon="👨‍💻", layout="wide")
 
-# 1. رفع ملف الفورم
-uploaded_file = st.file_uploader("1️⃣ ارفع ملف ردود الفورم (CSV أو Excel)", type=['csv', 'xlsx'])
+# 2. تصميم الهاكر + تأثير أكواد الماتريكس اللي بتنزل في الخلفية
+hacker_style = """
+<style>
+    @import url('https://googleapis.com');
 
-# 2. إدخال روابط الجروبات
-groups_input = st.text_area(
-    "2️⃣ اكتب روابط أو يوزرات الجروبات (كل جروب في سطر لوحده):",
-    placeholder="https://t.me"
-)
+    /* خلفية سوداء بالكامل */
+    .stApp {
+        background-color: #020502;
+        color: #00FF41;
+        font-family: 'Cairo', 'Fira Code', monospace;
+    }
 
-# 3. اختيار وضع التشغيل
-mode = st.radio(
-    "3️⃣ اختار وضع التشغيل:",
-    ["🔍 معاينة فقط (عرض المرشحين للطرد بدون حذف)", "🚨 تنفيذ الطرد الفعلي (حذف غير المسجلين فوراً)"]
-)
+    /* تنسيق العناوين بتوهج أخضر */
+    h1, h2, h3, label, .stMarkdown p {
+        color: #00FF41 !important;
+        text-shadow: 0 0 8px rgba(0, 255, 65, 0.6);
+        font-family: 'Cairo', monospace !important;
+    }
 
-async def process_groups(groups, allowed_users, allowed_phones, is_dry_run):
+    /* خانات الإدخال ورفع الملفات */
+    .stTextArea textarea, .stTextInput input, [data-testid="stFileUploader"] {
+        background-color: #071207 !important;
+        color: #00FF41 !important;
+        border: 1px solid #00FF41 !important;
+        box-shadow: 0 0 10px rgba(0, 255, 65, 0.2);
+        border-radius: 6px;
+    }
+
+    /* الزراير بستايل التيرمينال */
+    .stButton > button {
+        background-color: #001a05 !important;
+        color: #00FF41 !important;
+        border: 2px solid #00FF41 !important;
+        font-weight: bold !important;
+        font-size: 16px !important;
+        box-shadow: 0 0 12px rgba(0, 255, 65, 0.4);
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+    .stButton > button:hover {
+        background-color: #00FF41 !important;
+        color: #000000 !important;
+        box-shadow: 0 0 25px #00FF41;
+    }
+
+    /* إخفاء شريط ستريمليت العلوي */
+    header {visibility: hidden;}
+    
+    /* تثبيت شاشة أكواد الماتريكس في الخلفية */
+    iframe[title="streamlit_components_v1.html_v1"] {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 0;
+        opacity: 0.22;
+        pointer-events: none;
+    }
+    .block-container {
+        position: relative;
+        z-index: 1;
+    }
+</style>
+"""
+st.markdown(hacker_style, unsafe_allow_html=True)
+
+# كود أنيميشن الأكواد الخضراء المتساقطة (Matrix Rain)
+matrix_canvas = """
+<canvas id="matrix"></canvas>
+<script>
+const canvas = document.getElementById('matrix');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const fontSize = 14;
+const columns = canvas.width / fontSize;
+const drops = Array(Math.floor(columns)).fill(1);
+
+function draw() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#00FF41';
+    ctx.font = fontSize + 'px monospace';
+
+    for (let i = 0; i < drops.length; i++) {
+        const text = chars.charAt(Math.floor(Math.random() * chars.length));
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+            drops[i] = 0;
+        }
+        drops[i]++;
+    }
+}
+setInterval(draw, 35);
+</script>
+"""
+components.html(matrix_canvas, height=0)
+
+# إدارة التنقل بين الصفحة الرئيسية وصفحة النتائج
+if "page" not in st.session_state:
+    st.session_state.page = "home"
+if "scan_results" not in st.session_state:
+    st.session_state.scan_results = []
+
+# عنوان النظام
+st.markdown("<h1 style='text-align: center;'>[ 👨‍💻 نظام تصفية الجروب // GROUP FILTER ]</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; opacity: 0.8;'>SYSTEM STATUS: ONLINE | ACCESS: ROOT ADMIN</p>", unsafe_allow_html=True)
+st.divider()
+
+# ================= دوال الاتصال بتليجرام =================
+async def scan_groups(groups, allowed_users, allowed_phones):
     client = TelegramClient('my_session', API_ID, API_HASH)
     await client.connect()
 
     if not await client.is_user_authorized():
-        st.error("⚠️ الجلسة غير مسجلة أو منتهية!")
+        st.error("⚠️ خطأ: ملف الجلسة (my_session.session) غير صالح أو غير موجود!")
         await client.disconnect()
-        return
+        return []
 
-    kick_rights = ChatBannedRights(until_date=None, view_messages=True)
-
+    results = []
     for link in groups:
         link = link.strip()
         if not link:
             continue
-
-        st.subheader(f"📌 الجروب: {link}")
         try:
-            participants = await client.get_participants(link)
-            st.info(f"إجمالي الأعضاء الحاليين: **{len(participants)}** عضو")
+            entity = await client.get_entity(link)
+            group_title = getattr(entity, 'title', link)
+            participants = await client.get_participants(entity)
+
+            for user in participants:
+                if user.bot or user.deleted or user.is_self:
+                    continue
+                username = user.username.lower() if user.username else None
+                user_phone = user.phone[-10:] if (user.phone and len(user.phone) >= 10) else None
+
+                if not ((username in allowed_users) or (user_phone in allowed_phones)):
+                    results.append({
+                        "تحديد": True,
+                        "الجروب": group_title,
+                        "group_link": link,
+                        "user_id": user.id,
+                        "الاسم على تليجرام": user.first_name or "بدون اسم",
+                        "اليوزر": f"@{username}" if username else "لا يوجد",
+                        "رقم الهاتف": user.phone if user.phone else "مخفي"
+                    })
         except Exception as e:
-            st.error(f"فشل الدخول للجروب ({link}): {e}")
-            continue
-
-        candidates = []
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-
-        to_kick = []
-        for user in participants:
-            if user.bot or user.deleted or user.is_self:
-                continue
-            username = user.username.lower() if user.username else None
-            user_phone = user.phone[-10:] if (user.phone and len(user.phone) >= 10) else None
-
-            if not ((username in allowed_users) or (user_phone in allowed_phones)):
-                to_kick.append((user, username))
-
-        if not to_kick:
-            st.success("✅ الجروب نضيف تماماً! كل الأعضاء مسجلين في الفورم.")
-            continue
-
-        for idx, (user, username) in enumerate(to_kick):
-            status = "مرشح للطرد (معاينة)"
-            if not is_dry_run:
-                try:
-                    await client(EditBannedRequest(link, user, kick_rights))
-                    status = "✅ تم الطرد"
-                    status_text.text(f"جاري طرد: {user.first_name} ({idx+1}/{len(to_kick)})...")
-                    await asyncio.sleep(3)
-                except Exception as e:
-                    status = f"❌ فشل ({e})"
-
-            candidates.append({
-                "الاسم": user.first_name or "بدون اسم",
-                "اليوزر": f"@{username}" if username else "لا يوجد",
-                "رقم الهاتف": user.phone if user.phone else "مخفي",
-                "الحالة": status
-            })
-            progress_bar.progress((idx + 1) / len(to_kick))
-
-        st.write(f"العدد: **{len(candidates)}** شخص")
-        st.dataframe(pd.DataFrame(candidates), use_container_width=True)
+            st.error(f"❌ فشل اختراق/فحص الرابط ({link}): {e}")
 
     await client.disconnect()
-    st.success("🎉 تمت العملية بنجاح!")
+    return results
 
-if st.button("🚀 ابدأ الفحص والتنظيف", type="primary"):
-    if not uploaded_file:
-        st.warning("من فضلك ارفع ملف الفورم الأول!")
-    elif not groups_input.strip():
-        st.warning("من فضلك اكتب رابط جروب واحد على الأقل!")
-    else:
-        if uploaded_file.name.endswith('.csv'):
-            df = pd.read_csv(uploaded_file, encoding='utf-8')
+async def execute_kick(selected_rows):
+    client = TelegramClient('my_session', API_ID, API_HASH)
+    await client.connect()
+    kick_rights = ChatBannedRights(until_date=None, view_messages=True)
+
+    progress = st.progress(0)
+    status_box = st.empty()
+    kicked = 0
+
+    for idx, row in enumerate(selected_rows):
+        try:
+            await client(EditBannedRequest(row["group_link"], int(row["user_id"]), kick_rights))
+            kicked += 1
+            status_box.success(f"⚡ تم طرد الهدف: {row['الاسم على تليجرام']} ({idx+1}/{len(selected_rows)})")
+            await asyncio.sleep(3)
+        except Exception as e:
+            st.warning(f"⚠️ تعذر طرد {row['الاسم على تليجرام']}: {e}")
+        progress.progress((idx + 1) / len(selected_rows))
+
+    await client.disconnect()
+    return kicked
+
+# ================= الصفحة 1: الصفحة الرئيسية =================
+if st.session_state.page == "home":
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        groups_input = st.text_area(
+            "🔗 أدخل رابط الجروب (أو عدة روابط، كل رابط في سطر):",
+            height=150,
+            placeholder="https://t.me\nhttps://t.me"
+        )
+    
+    with col2:
+        uploaded_file = st.file_uploader(
+            "📂 ارفع ملف الإكسيل (CSV أو XLSX) الخاص بالفورم:",
+            type=['csv', 'xlsx']
+        )
+
+    st.write("")
+    if st.button("🚀 بدء الفحص واستخراج الأهداف"):
+        if not uploaded_file or not groups_input.strip():
+            st.warning("⚠️ برجاء إدخال رابط الجروب ورفع ملف البيانات أولاً!")
         else:
-            df = pd.read_excel(uploaded_file)
+            if uploaded_file.name.endswith('.csv'):
+                df = pd.read_csv(uploaded_file, encoding='utf-8')
+            else:
+                df = pd.read_excel(uploaded_file)
 
-        phone_series = df.iloc[:, 3]
-        username_series = df.iloc[:, -1]
+            phone_series = df.iloc[:, 3]
+            username_series = df.iloc[:, -1]
 
-        allowed_users = set(username_series.dropna().astype(str).str.replace('@', '', regex=False).str.strip().str.lower())
-        allowed_phones = set()
-        for p in phone_series.dropna().astype(str):
-            clean_p = ''.join(filter(str.isdigit, p))
-            if len(clean_p) >= 10:
-                allowed_phones.add(clean_p[-10:])
+            allowed_users = set(username_series.dropna().astype(str).str.replace('@', '', regex=False).str.strip().str.lower())
+            allowed_phones = set()
+            for p in phone_series.dropna().astype(str):
+                clean_p = ''.join(filter(str.isdigit, p))
+                if len(clean_p) >= 10:
+                    allowed_phones.add(clean_p[-10:])
 
-        st.success(f"تم تحميل الفورم: **{len(allowed_users)}** يوزر و **{len(allowed_phones)}** رقم هاتف.")
-        
-        groups = groups_input.strip().split('\n')
-        is_dry_run = "معاينة" in mode
+            with st.spinner("⏳ جاري سحب قاعدة بيانات الأعضاء ومطابقتها..."):
+                groups = groups_input.strip().split('\n')
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                st.session_state.scan_results = loop.run_until_complete(scan_groups(groups, allowed_users, allowed_phones))
+                st.session_state.page = "results"
+                st.rerun()
 
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(process_groups(groups, allowed_users, allowed_phones, is_dry_run))
+# ================= الصفحة 2: صفحة النتائج والمراجعة =================
+elif st.session_state.page == "results":
+    results = st.session_state.scan_results
+
+    if len(results) == 0:
+        st.success("✅ النظام نظيف 100%! جميع الأعضاء مسجلين في الفورم.")
+        if st.button("🔙 رجوع للصفحة الرئيسية"):
+            st.session_state.page = "home"
+            st.rerun()
+    else:
+        st.subheader(f"🎯 تم رصد ({len(results)}) حساب غير مسجل في الفورم:")
+        st.caption("راجع القائمة: شيل علامة الصح (✔) من قدام أي شخص مش عايز تمسحه.")
+
+        df_results = pd.DataFrame(results)
+        edited_df = st.data_editor(
+            df_results,
+            column_config={
+                "group_link": None,
+                "user_id": None,
+                "تحديد": st.column_config.CheckboxColumn("مسح؟", default=True)
+            },
+            disabled=["الجروب", "الاسم على تليجرام", "اليوزر", "رقم الهاتف"],
+            use_container_width=True,
+            hide_index=True
+        )
+
+        selected_to_kick = edited_df[edited_df["تحديد"] == True].to_dict('records')
+        st.write(f"عدد الحسابات المحددة للمسح حالياً: **{len(selected_to_kick)}**")
+
+        # الزرارين جنب بعض: واحد مسح وواحد رجوع للصفحة الرئيسية
+        btn_col1, btn_col2 = st.columns(2)
+
+        with btn_col1:
+            if st.button(f"🗑️ امسح المحددين ({len(selected_to_kick)})"):
+                if len(selected_to_kick) == 0:
+                    st.warning("⚠️ لم تقم بتحديد أي شخص للمسح!")
+                else:
+                    loop = asyncio.new_event_loop()
+
+# ================= الصفحة 2: صفحة النتائج والمراجعة =================
+elif st.session_state.page == "results":
+    results = st.session_state.scan_results
+
+    # زرار رجوع ثابت في أعلى الصفحة دايماً
+    if st.button("🔙 رجوع للصفحة الرئيسية", key="top_back"):
+        st.session_state.page = "home"
+        st.session_state.scan_results = []
+        st.rerun()
+
+    if len(results) == 0:
+        st.success("✅ النظام نظيف 100%! جميع الأعضاء مسجلين في الفورم.")
+    else:
+        st.subheader(f"🎯 تم رصد ({len(results)}) حساب غير مسجل في الفورم:")
+        st.caption("راجع القائمة: شيل علامة الصح (✔) من قدام أي شخص مش عايز تمسحه.")
+
+        df_results = pd.DataFrame(results)
+        edited_df = st.data_editor(
+            df_results,
+            column_config={
+                "group_link": None,
+                "user_id": None,
+                "تحديد": st.column_config.CheckboxColumn("مسح؟", default=True)
+            },
+            disabled=["الجروب", "الاسم على تليجرام", "اليوزر", "رقم الهاتف"],
+            use_container_width=True,
+            hide_index=True
+        )
+
+        selected_to_kick = edited_df[edited_df["تحديد"] == True].to_dict('records')
+        st.write(f"عدد الحسابات المحددة للمسح حالياً: **{len(selected_to_kick)}**")
+
+        # الزرارين جنب بعض في الأسفل: واحد مسح وواحد رجوع
+        btn_col1, btn_col2 = st.columns(2)
+
+        with btn_col1:
+            if st.button(f"🗑️ امسح المحددين ({len(selected_to_kick)})", key="kick_btn"):
+                if len(selected_to_kick) == 0:
+                    st.warning("⚠️ لم تقم بتحديد أي شخص للمسح!")
+                else:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    kicked_count = loop.run_until_complete(execute_kick(selected_to_kick))
+                    st.success(f"🔥 تمت التصفية بنجاح! تم طرد {kicked_count} حساب.")
+                    st.session_state.scan_results = []
+
+        with btn_col2:
+            if st.button("🔙 رجوع للصفحة الرئيسية", key="bottom_back"):
+                st.session_state.page = "home"
+                st.session_state.scan_results = []
+                st.rerun()
