@@ -124,7 +124,7 @@ def normalize_phone(phone_str):
         return None
     digits = re.sub(r'\D', '', str(phone_str))
     if len(digits) >= 10:
-        return digits[-10:]  # توحيد آخر 10 أرقام (مثال: 1001234567)
+        return digits[-10:]
     return None
 
 def normalize_username(user_str):
@@ -136,14 +136,12 @@ def normalize_username(user_str):
     return None
 
 def extract_from_text_blob(text_blob, users_set, phones_set):
-    # استخراج أرقام الهواتف المصرية والدولية المحتملة
     raw_phones = re.findall(r'(?:\+?20|0020|0)?1[0125]\d{8}', text_blob)
     for p in raw_phones:
         norm_p = normalize_phone(p)
         if norm_p:
             phones_set.add(norm_p)
 
-    # استخراج اليوزرات سواء بعلامة @ أو روابط t.me
     raw_at_users = re.findall(r'(?:@|t\.me/)([a-zA-Z0-9_]{4,32})', text_blob)
     for u in raw_at_users:
         norm_u = normalize_username(u)
@@ -161,7 +159,6 @@ def smart_parse_files(uploaded_files):
                 df = pd.read_csv(file, dtype=str).fillna('')
                 full_text = " ".join(df.astype(str).values.flatten())
                 extract_from_text_blob(full_text, allowed_users, allowed_phones)
-                # فحص الخلايا الفردية لالتقاط اليوزرات المكتوبة بدون @
                 for val in df.values.flatten():
                     val_str = str(val).strip()
                     if val_str and not val_str.isdigit() and ' ' not in val_str:
@@ -191,7 +188,6 @@ def smart_parse_files(uploaded_files):
                         if extracted:
                             pdf_text += "\n" + extracted
                     extract_from_text_blob(pdf_text, allowed_users, allowed_phones)
-                    # فحص الكلمات المنفصلة لالتقاط اليوزرات بدون @
                     for token in re.split(r'[\s,;|]+', pdf_text):
                         if not token.isdigit():
                             u = normalize_username(token)
@@ -267,4 +263,11 @@ async def scan_telegram_groups(groups, allowed_users, allowed_phones):
                         "user_id": user.id
                     })
         except Exception as e:
-            st.warning(f"⚠️ خطأ أثناء مسح الجروب ({clean_link}): {e}")  
+            st.error(f"❌ تعذر فحص الجروب ({clean_link}): {e}")
+
+    await client.disconnect()
+    stats = {
+        "total": total_scanned,
+        "registered": total_scanned - len(candidates),
+        "to_kick": len(candidates)
+    }
