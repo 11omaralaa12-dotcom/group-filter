@@ -1,0 +1,6 @@
+streamlit
+telethon
+pandas
+openpyxl
+xlrd
+pdfplumber
