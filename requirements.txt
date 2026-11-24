@@ -1,4 +1,0 @@
-streamlit
-telethon
-pandas
-openpyxl
